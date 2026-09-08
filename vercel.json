@@ -11,7 +11,7 @@
   "functions": {
     "api/data.ts": { "maxDuration": 60 },
     "api/runs/create.ts": { "maxDuration": 60 },
-    "api/runs/execute-prompt.ts": { "maxDuration": 60 },
+    "api/runs/execute-prompt.ts": { "maxDuration": 300 },
     "api/[...path].ts": { "maxDuration": 60 }
   }
 }
