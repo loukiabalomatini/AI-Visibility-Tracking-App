@@ -44,7 +44,7 @@ const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   openai: 'gpt-4o',
 };
 
-const DEFAULT_ENABLED_PROVIDERS = ['gemini', 'claude', 'openai'];
+const DEFAULT_ENABLED_PROVIDERS = ['gemini'];
 
 // Compute metrics according to exact user specifications
 function calculateRunMetrics(promptResults: any[], targetBrand: string, competitors: string[]) {
