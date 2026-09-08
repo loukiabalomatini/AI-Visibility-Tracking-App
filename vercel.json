@@ -2,16 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
     { "src": "/api/data", "dest": "/api/data.ts" },
+    { "src": "/api/runs/create", "dest": "/api/runs/create.ts" },
     { "src": "/api/(.*)", "dest": "/api/[...path].ts" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "functions": {
-    "api/data.ts": {
-      "maxDuration": 60
-    },
-    "api/[...path].ts": {
-      "maxDuration": 60
-    }
+    "api/data.ts": { "maxDuration": 60 },
+    "api/runs/create.ts": { "maxDuration": 60 },
+    "api/[...path].ts": { "maxDuration": 60 }
   }
 }
