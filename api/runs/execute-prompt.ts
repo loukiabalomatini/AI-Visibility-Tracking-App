@@ -43,24 +43,20 @@ async function runGemini(prompt: string, trackedBrands: string[], model: string)
   const ai = new GoogleGenAI({ apiKey });
   const selectedModel = model || 'gemini-2.5-flash';
 
+  // Use one Gemini request per prompt. The previous implementation made a
+  // second Gemini call solely to audit the first response, which made each
+  // serverless invocation unnecessarily slow and could leave the UI pending.
+  const requestPrompt = `Answer this user question naturally and accurately:\n\n${prompt}\n\nAfter answering, identify whether each tracked brand below was mentioned or recommended in your answer. If the answer explicitly ranks a brand, provide its rank. Also provide the order in which mentioned brands first appear. Return ONLY valid JSON matching the requested schema.\n\nTracked brands: ${JSON.stringify(trackedBrands)}`;
+
   const response = await ai.models.generateContent({
     model: selectedModel,
-    contents: prompt,
-  });
-
-  const rawResponse = response.text || '';
-  if (!rawResponse.trim()) throw new Error('Gemini returned an empty response.');
-
-  const auditPrompt = `You are an AI brand visibility auditor.\nAnalyze the following AI-generated response to the question: "${prompt}".\nAudit these brands: ${JSON.stringify(trackedBrands)}.\n\nRaw AI response:\n"""\n${rawResponse}\n"""\n\nReturn ONLY valid JSON with a top-level "brands" array. For every tracked brand provide:\n- name: exact brand name\n- mentioned: boolean\n- recommended: boolean\n- explicit_position: integer or null. Only use a number when the answer explicitly ranks the brand.\n- mention_order: integer or null\n- context: short explanation.`;
-
-  const audit = await ai.models.generateContent({
-    model: selectedModel,
-    contents: auditPrompt,
+    contents: requestPrompt,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
         properties: {
+          answer: { type: Type.STRING },
           brands: {
             type: Type.ARRAY,
             items: {
@@ -77,18 +73,29 @@ async function runGemini(prompt: string, trackedBrands: string[], model: string)
             },
           },
         },
-        required: ['brands'],
+        required: ['answer', 'brands'],
       },
     },
   });
 
-  const rawAnalysisJson = audit.text || '';
-  if (!rawAnalysisJson.trim()) throw new Error('Gemini returned an empty brand audit response.');
+  const rawJson = response.text || '';
+  if (!rawJson.trim()) throw new Error('Gemini returned an empty response.');
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawJson.trim());
+  } catch {
+    throw new Error(`Gemini returned invalid JSON: ${rawJson.slice(0, 300)}`);
+  }
+
+  if (!parsed || typeof parsed.answer !== 'string' || !Array.isArray(parsed.brands)) {
+    throw new Error('Gemini returned an unexpected response structure.');
+  }
 
   return {
-    rawResponse,
-    rawAnalysisJson,
-    brands: validateBrandAuditJSON(rawAnalysisJson, trackedBrands),
+    rawResponse: parsed.answer,
+    rawAnalysisJson: JSON.stringify(parsed, null, 2),
+    brands: validateBrandAuditJSON(JSON.stringify({ brands: parsed.brands }), trackedBrands),
     model: selectedModel,
   };
 }
@@ -106,8 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Vercel serverless functions have a read-only filesystem and are stateless.
-    // The complete run is therefore supplied by the browser instead of being
-    // loaded from data/tracker_store.json.
+    // The complete run is supplied by the browser instead of being loaded from
+    // data/tracker_store.json.
     if (!run || typeof run !== 'object' || !run.id) {
       return res.status(400).json({ error: 'Run data is required.' });
     }
@@ -138,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
     currentPrompt.model = result.model;
     currentPrompt.status = 'completed';
-    currentPrompt.error = undefined;
+    delete currentPrompt.error;
     currentPrompt.timestamp = new Date().toISOString();
 
     const updatedPromptResults = run.promptResults.map((p: any) =>
