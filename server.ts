@@ -385,16 +385,29 @@ export async function createApp() {
 
   // 1. GET /api/data - fetch all data (config + runs) + API key status & provider statuses
   app.get('/api/data', (req, res) => {
+  try {
     const store = loadStore();
     const providersStatus = getProvidersStatusMap();
-    const apiKeyConfigured = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
+    const apiKeyConfigured = Boolean(
+      process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY.trim().length > 0
+    );
+
     res.json({
       ...store,
       apiKeyConfigured,
       providersStatus,
     });
-  });
+  } catch (error) {
+    console.error('API DATA ERROR:', error);
 
+    res.status(500).json({
+      error: 'Failed to load tracker data',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+  
   // 2. POST /api/setup - update target brand, competitors, prompts, providerModels, enabledProviders
   app.post('/api/setup', (req, res) => {
     const { targetBrand, competitors, prompts, providerModels, enabledProviders } = req.body;
