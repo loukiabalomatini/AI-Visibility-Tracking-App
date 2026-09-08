@@ -22,7 +22,7 @@
     "openai": "^7.10.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
     "@vercel/node": "^5.4.0"  
   },
   "devDependencies": {
