@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import fs from 'fs';
+import path from 'path';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -20,19 +22,26 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const supportedProviders = ['gemini', 'claude', 'openai'];
-    for (const provider of activeProviders) {
-      if (!supportedProviders.includes(String(provider).toLowerCase())) {
+    const normalizedProviders = activeProviders.map((p: string) => String(p).toLowerCase());
+    for (const provider of normalizedProviders) {
+      if (!supportedProviders.includes(provider)) {
         return res.status(400).json({ error: `Unsupported provider: ${provider}` });
       }
     }
 
-    const normalizedProviders = activeProviders.map((p: string) => String(p).toLowerCase());
     const models = {
       gemini: 'gemini-flash-latest',
       claude: 'claude-3-5-sonnet-20241022',
       openai: 'gpt-4o',
       ...(providerModels || {}),
     };
+
+    const storePath = path.join(process.cwd(), 'data', 'tracker_store.json');
+    let store: any = { config: {}, runs: [] };
+    if (fs.existsSync(storePath)) {
+      store = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+    }
+    if (!Array.isArray(store.runs)) store.runs = [];
 
     const runId = `run-${Date.now()}`;
     const promptResults = activePrompts.flatMap((prompt: any) =>
@@ -67,8 +76,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       providerMetrics: {},
     };
 
-    // This endpoint intentionally does not persist the run yet. It only validates
-    // the request and creates the run payload. Execution is handled separately.
+    store.runs.unshift(run);
+    fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
+
     return res.status(200).json({ success: true, run });
   } catch (error: any) {
     console.error('CREATE RUN ERROR:', error);
