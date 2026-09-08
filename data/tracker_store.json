@@ -1,0 +1,74 @@
+{
+  "config": {
+    "targetBrand": "Nimbata",
+    "competitors": [
+      "CallRail",
+      "WhatConverts",
+      "CallTrackingMetrics",
+      "Invoca"
+    ],
+    "prompts": [
+      {
+        "id": "p1",
+        "text": "What is call tracking?",
+        "category": "Educational",
+        "enabled": true
+      },
+      {
+        "id": "p2",
+        "text": "What is call tracking software?",
+        "category": "Commercial",
+        "enabled": true
+      },
+      {
+        "id": "p3",
+        "text": "What is the best call tracking software?",
+        "category": "Commercial",
+        "enabled": true
+      },
+      {
+        "id": "p4",
+        "text": "What is the best call tracking software for agencies?",
+        "category": "Commercial",
+        "enabled": true
+      },
+      {
+        "id": "p5",
+        "text": "What is the best call tracking software for Google Ads?",
+        "category": "Commercial",
+        "enabled": true
+      },
+      {
+        "id": "p6",
+        "text": "What are the best alternatives to CallRail?",
+        "category": "Comparison",
+        "enabled": true
+      },
+      {
+        "id": "p7",
+        "text": "What are the best CallRail competitors?",
+        "category": "Comparison",
+        "enabled": true
+      },
+      {
+        "id": "p8",
+        "text": "What is the best call tracking software for healthcare?",
+        "category": "Use Case",
+        "enabled": true
+      },
+      {
+        "id": "p9",
+        "text": "What is the best call tracking software for multi-location businesses?",
+        "category": "Use Case",
+        "enabled": true
+      },
+      {
+        "id": "p10",
+        "text": "How can I know which ads generate phone calls?",
+        "category": "Problem",
+        "enabled": true
+      }
+    ]
+  },
+  "runs": []
+}

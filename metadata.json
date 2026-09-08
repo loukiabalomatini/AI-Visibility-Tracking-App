@@ -1,0 +1,6 @@
+{
+  "name": "AI Visibility Tracker",
+  "description": "Measure how visible a brand is in AI-generated answers compared with its competitors.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
