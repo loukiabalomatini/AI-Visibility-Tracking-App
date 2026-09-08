@@ -269,7 +269,7 @@ function saveStore(data: any): Promise<void> {
   return saveQueuePromise;
 }
 
-async function startServer() {
+export async function createApp() {
   const app = express();
   app.use(express.json());
 
@@ -687,13 +687,21 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-    // Check initial connection status for any pre-configured providers
-    initializeConfiguredProviders().catch(err => {
-      console.error('Note on initial provider verification:', (err as any)?.message || err);
+  return app;
+}
+
+// Run as a normal server locally
+if (!process.env.VERCEL) {
+  createApp().then(app => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+
+      initializeConfiguredProviders().catch(err => {
+        console.error(
+          'Note on initial provider verification:',
+          (err as any)?.message || err
+        );
+      });
     });
   });
 }
-
-startServer();
