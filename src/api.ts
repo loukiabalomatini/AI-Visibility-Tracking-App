@@ -8,12 +8,43 @@ import {
   ProviderConnectionStatus,
 } from './types';
 
+const ACTIVE_RUN_KEY = 'ai-visibility-active-run';
+
+function getLocalRun(): AnalysisRun | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_RUN_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalRun(run: AnalysisRun | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (run) window.localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run));
+    else window.localStorage.removeItem(ACTIVE_RUN_KEY);
+  } catch {
+    // Local storage is only used as client-side persistence for the stateless Vercel deployment.
+  }
+}
+
 export async function fetchTrackerData(): Promise<TrackerData> {
   const res = await fetch('/api/data');
-  if (!res.ok) {
-    throw new Error('Failed to load tracker data');
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data) {
+    throw new Error(data?.error || 'Failed to load tracker data');
   }
-  return res.json();
+
+  // Vercel serverless functions cannot persist to the deployment filesystem.
+  // Merge the active run kept in the browser into the server-provided config.
+  const localRun = getLocalRun();
+  if (localRun) {
+    data.runs = [localRun, ...(data.runs || []).filter((r: AnalysisRun) => r.id !== localRun.id)];
+  }
+
+  return data;
 }
 
 export async function fetchProvidersStatus(): Promise<{
@@ -104,18 +135,25 @@ export async function createAnalysisRun(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to create analysis run');
+    throw new Error(data.error || 'Failed to create analysis run');
   }
-  return res.json();
+
+  saveLocalRun(data.run);
+  return data;
 }
 
 export async function executePrompt(
-  run: AnalysisRun,
+  runOrId: AnalysisRun | string,
   promptId: string,
   provider: AIProviderId = 'gemini'
 ): Promise<any> {
+  const run = typeof runOrId === 'string' ? getLocalRun() : runOrId;
+  if (!run) {
+    throw new Error('Active run data is not available in this browser. Please start the analysis again.');
+  }
+
   const res = await fetch('/api/runs/execute-prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -125,6 +163,11 @@ export async function executePrompt(
   if (!res.ok) {
     throw new Error(data.error || `Failed to execute prompt on ${provider}`);
   }
+
+  if (data.runProgress) {
+    saveLocalRun(data.runProgress);
+  }
+
   return data;
 }
 
@@ -140,4 +183,6 @@ export async function deleteRun(runId: string): Promise<void> {
   await fetch(`/api/runs/${runId}`, {
     method: 'DELETE',
   });
+  const localRun = getLocalRun();
+  if (localRun?.id === runId) saveLocalRun(null);
 }
