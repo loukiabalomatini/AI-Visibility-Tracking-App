@@ -1,6 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import fs from 'fs';
-import path from 'path';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -13,7 +11,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const activeTarget = typeof targetBrand === 'string' ? targetBrand.trim() : '';
     const activeCompetitors = Array.isArray(competitors) ? competitors : [];
     const activePrompts = Array.isArray(prompts) ? prompts.filter((p: any) => p && p.enabled !== false) : [];
-    const activeProviders = Array.isArray(providers) && providers.length > 0 ? providers : ['gemini'];
+    const activeProviders = Array.isArray(providers) && providers.length > 0
+      ? providers.map((p: string) => String(p).toLowerCase())
+      : ['gemini'];
 
     if (!activeTarget || activePrompts.length === 0) {
       return res.status(400).json({
@@ -22,8 +22,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const supportedProviders = ['gemini', 'claude', 'openai'];
-    const normalizedProviders = activeProviders.map((p: string) => String(p).toLowerCase());
-    for (const provider of normalizedProviders) {
+    for (const provider of activeProviders) {
       if (!supportedProviders.includes(provider)) {
         return res.status(400).json({ error: `Unsupported provider: ${provider}` });
       }
@@ -36,16 +35,12 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       ...(providerModels || {}),
     };
 
-    const storePath = path.join(process.cwd(), 'data', 'tracker_store.json');
-    let store: any = { config: {}, runs: [] };
-    if (fs.existsSync(storePath)) {
-      store = JSON.parse(fs.readFileSync(storePath, 'utf8'));
-    }
-    if (!Array.isArray(store.runs)) store.runs = [];
-
+    // Vercel serverless functions have a read-only filesystem and are stateless.
+    // The browser keeps the active run in localStorage, so this endpoint only
+    // creates and returns the initial run object. It must not read/write a JSON file.
     const runId = `run-${Date.now()}`;
     const promptResults = activePrompts.flatMap((prompt: any) =>
-      normalizedProviders.map((provider: string) => ({
+      activeProviders.map((provider: string) => ({
         runId,
         promptId: prompt.id,
         provider,
@@ -68,16 +63,13 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       completedPrompts: 0,
       failedPrompts: 0,
       model: models.gemini,
-      enabledProviders: normalizedProviders,
+      enabledProviders: activeProviders,
       providerModels: models,
       status: 'running',
       promptResults,
       brandMetrics: {},
       providerMetrics: {},
     };
-
-    store.runs.unshift(run);
-    fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
 
     return res.status(200).json({ success: true, run });
   } catch (error: any) {
