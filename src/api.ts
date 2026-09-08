@@ -111,13 +111,17 @@ export async function createAnalysisRun(params: {
   return res.json();
 }
 
-export async function executePrompt(runId: string, promptId: string, provider: AIProviderId = 'gemini'): Promise<any> {
+export async function executePrompt(
+  run: AnalysisRun,
+  promptId: string,
+  provider: AIProviderId = 'gemini'
+): Promise<any> {
   const res = await fetch('/api/runs/execute-prompt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ runId, promptId, provider }),
+    body: JSON.stringify({ run, promptId, provider }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || `Failed to execute prompt on ${provider}`);
   }
